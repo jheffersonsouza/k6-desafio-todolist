@@ -1,0 +1,2 @@
+# O run.sh roda num container Linux: precisa de LF mesmo num clone feito no Windows.
+* text=auto eol=lf
