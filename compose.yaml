@@ -1,0 +1,26 @@
+# Roda a suite sem instalar o k6: docker compose run --rm --service-ports k6 <comando>
+# A configuração vem do .env (copie o .env.example). Os comandos estão no README.
+services:
+  k6:
+    image: grafana/k6:2.4.0
+    entrypoint: ["sh", "run.sh"]
+    command: ["smoke"]
+    working_dir: /k6
+    volumes:
+      - .:/k6
+    # No Linux, faz os arquivos de results/ saírem com o seu usuário, não com o do container.
+    user: "${UID:-1000}:${GID:-1000}"
+    ports:
+      - "5665:5665" # dashboard do k6
+    extra_hosts:
+      # host.docker.internal aponta para a sua máquina também no Linux.
+      - "host.docker.internal:host-gateway"
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:8080}
+      API: ${API:-api}
+      RATE: ${RATE:-}
+      DURATION: ${DURATION:-}
+      SCENARIOS: ${SCENARIOS:-}
+      USERS: ${USERS:-}
+      AUTH_SCHEME: ${AUTH_SCHEME:-}
+      SKIP_CONTRACT: ${SKIP_CONTRACT:-}
