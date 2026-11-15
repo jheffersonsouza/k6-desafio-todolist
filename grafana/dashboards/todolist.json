@@ -1,0 +1,1626 @@
+{
+  "uid": "todolist",
+  "title": "Todo List API · testes de carga",
+  "description": "Testes de carga do desafio Todo List API (roadmap.sh), feitos com k6.",
+  "tags": [
+    "k6"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "schemaVersion": 39,
+  "version": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "api",
+        "label": "API",
+        "type": "query",
+        "datasource": {
+          "type": "influxdb",
+          "uid": "k6influx"
+        },
+        "query": "SHOW TAG VALUES FROM \"http_reqs\" WITH KEY = \"api\"",
+        "definition": "SHOW TAG VALUES FROM \"http_reqs\" WITH KEY = \"api\"",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "sort": 1,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      },
+      {
+        "name": "execucao",
+        "label": "Execução",
+        "type": "query",
+        "datasource": {
+          "type": "influxdb",
+          "uid": "k6influx"
+        },
+        "query": "SHOW TAG VALUES FROM \"http_reqs\" WITH KEY = \"rotulo\" WHERE \"api\" =~ /^$api$/",
+        "definition": "SHOW TAG VALUES FROM \"http_reqs\" WITH KEY = \"rotulo\" WHERE \"api\" =~ /^$api$/",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "sort": 2,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Resposta normal",
+      "description": "Metade das requisições respondeu mais rápido que isso.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT percentile(\"value\", 50) FROM \"http_req_duration\" WHERE \"fase\" = 'teste' AND \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY \"run\", \"rotulo\"",
+          "alias": "$tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#0ca30c",
+                "value": null
+              },
+              {
+                "color": "#fab219",
+                "value": 100
+              },
+              {
+                "color": "#d03b3b",
+                "value": 500
+              }
+            ]
+          },
+          "noValue": "-",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 1,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "95% em até",
+      "description": "Só 1 em cada 20 requisições demorou mais que isso. Verde até 100 ms, amarelo até 500 ms, vermelho acima.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT percentile(\"value\", 95) FROM \"http_req_duration\" WHERE \"fase\" = 'teste' AND \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY \"run\", \"rotulo\"",
+          "alias": "$tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#0ca30c",
+                "value": null
+              },
+              {
+                "color": "#fab219",
+                "value": 100
+              },
+              {
+                "color": "#d03b3b",
+                "value": 500
+              }
+            ]
+          },
+          "noValue": "-",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 2,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Erros",
+      "description": "Respostas com status de erro ou que nem chegaram.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"value\") * 100 FROM \"http_req_failed\" WHERE \"fase\" = 'teste' AND \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY \"run\", \"rotulo\"",
+          "alias": "$tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#0ca30c",
+                "value": null
+              },
+              {
+                "color": "#fab219",
+                "value": 0.001
+              },
+              {
+                "color": "#d03b3b",
+                "value": 1
+              }
+            ]
+          },
+          "noValue": "-",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 3,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Requisições",
+      "description": "Quantas requisições o teste fez.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT count(\"value\") FROM \"http_reqs\" WHERE \"fase\" = 'teste' AND \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY \"run\", \"rotulo\"",
+          "alias": "$tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "-"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 4,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Memória no pico",
+      "description": "Maior uso de memória do processo (ou container) da API durante o teste.",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT max(\"memoria_mb\") FROM \"api_recursos\" WHERE \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY \"run\", \"rotulo\"",
+          "alias": "$tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decmbytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "não medida",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 5,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "CPU no pico",
+      "description": "1 núcleo = um núcleo do processador 100% ocupado.",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT max(\"cpu_nucleos\") FROM \"api_recursos\" WHERE \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY \"run\", \"rotulo\"",
+          "alias": "$tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: núcleos",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "não medida",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 6,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Aguentou até",
+      "description": "Só no teste de capacidade: a maior carga em que todas as rotas responderam com 95% em até 500 ms, quase sem erro.",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT last(\"aguentou_rps\") FROM \"execucoes\" WHERE \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY \"run\", \"rotulo\"",
+          "alias": "$tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: req/s",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "só no teste de capacidade",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      },
+      "id": 7,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tempo de resposta",
+      "description": "Em quanto tempo as respostas chegaram. Normal: metade foi mais rápida. 95% em até: só 1 em 20 demorou mais. Acima da linha vermelha (500 ms), está lento.",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "interval": "1s",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT percentile(\"value\", 95) AS \"95% em até\", percentile(\"value\", 50) AS \"normal\" FROM \"http_req_duration\" WHERE \"fase\" = 'teste' AND \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY time($__interval), \"run\", \"rotulo\" fill(none)",
+          "alias": "$col · $tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "axisSoftMin": 0,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#2a78d6"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "#d03b3b",
+                "value": 500
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^95%.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#eb6834"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^normal.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#2a78d6"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 8,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Requisições por segundo",
+      "description": "Carga que a API atendeu.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "interval": "1s",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT count(\"value\") / ($__interval_ms / 1000) FROM \"http_reqs\" WHERE \"fase\" = 'teste' AND \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY time($__interval), \"run\", \"rotulo\" fill(0)",
+          "alias": "$tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "axisSoftMin": 0
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#2a78d6"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 9,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Erros",
+      "description": "Porcentagem das requisições que deram erro.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "interval": "1s",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"value\") * 100 FROM \"http_req_failed\" WHERE \"fase\" = 'teste' AND \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY time($__interval), \"run\", \"rotulo\" fill(none)",
+          "alias": "$tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "axisSoftMin": 0,
+            "axisSoftMax": 5
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#2a78d6"
+          },
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 10,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memória da API",
+      "description": "Memória usada pelo processo (ou container) da API. Só aparece com a API rodando na mesma máquina do teste.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "interval": "1s",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT max(\"memoria_mb\") FROM \"api_recursos\" WHERE \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY time($__interval), \"run\", \"rotulo\" fill(none)",
+          "alias": "$tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decmbytes",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "axisSoftMin": 0
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#2a78d6"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 11,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU da API",
+      "description": "1 núcleo = um núcleo do processador 100% ocupado.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "interval": "1s",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT max(\"cpu_nucleos\") FROM \"api_recursos\" WHERE \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY time($__interval), \"run\", \"rotulo\" fill(none)",
+          "alias": "$tag_rotulo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: núcleos",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "axisSoftMin": 0
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#2a78d6"
+          },
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 12,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "table",
+      "title": "Por rota",
+      "description": "Cada rota da API, somando as execuções escolhidas no topo.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "table",
+          "query": "SELECT percentile(\"value\", 50) AS \"Normal\", percentile(\"value\", 95) AS \"95% em até\", max(\"value\") AS \"Mais lenta\", count(\"value\") AS \"Requisições\" FROM \"http_req_duration\" WHERE \"fase\" = 'teste' AND \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY \"endpoint\""
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "table",
+          "query": "SELECT mean(\"value\") * 100 AS \"Erros\" FROM \"http_req_failed\" WHERE \"fase\" = 'teste' AND \"api\" =~ /^$api$/ AND \"rotulo\" =~ /^$execucao$/ AND $timeFilter GROUP BY \"endpoint\""
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "endpoint": 0,
+              "Normal": 1,
+              "95% em até": 2,
+              "Mais lenta": 3,
+              "Erros": 4,
+              "Requisições": 5
+            },
+            "renameByName": {
+              "endpoint": "Rota"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rota"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "list": {
+                        "text": "Listar tarefas",
+                        "index": 0
+                      },
+                      "create": {
+                        "text": "Criar tarefa",
+                        "index": 1
+                      },
+                      "update": {
+                        "text": "Editar tarefa",
+                        "index": 2
+                      },
+                      "delete": {
+                        "text": "Apagar tarefa",
+                        "index": 3
+                      },
+                      "login": {
+                        "text": "Login",
+                        "index": 4
+                      },
+                      "register": {
+                        "text": "Cadastro",
+                        "index": 5
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Normal"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "95% em até"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#0ca30c",
+                      "value": null
+                    },
+                    {
+                      "color": "#fab219",
+                      "value": 100
+                    },
+                    {
+                      "color": "#d03b3b",
+                      "value": 500
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mais lenta"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Erros"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#0ca30c",
+                      "value": null
+                    },
+                    {
+                      "color": "#fab219",
+                      "value": 0.001
+                    },
+                    {
+                      "color": "#d03b3b",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Requisições"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "id": 13,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "table",
+      "title": "Execuções",
+      "description": "Os testes dos últimos 90 dias. Clique no horário de uma execução para ver só ela no painel.",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      },
+      "timeFrom": "90d",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "k6influx"
+          },
+          "rawQuery": true,
+          "resultFormat": "table",
+          "query": "SELECT \"teste\", \"normal_ms\", \"p95_ms\", \"erros_pct\", \"aguentou_rps\", \"memoria_pico_mb\", \"cpu_pico\", \"checklist\", \"inicio\", \"fim\" FROM \"execucoes\" WHERE \"api\" =~ /^$api$/ AND $timeFilter GROUP BY \"api\", \"run\", \"rotulo\""
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "Time": 0,
+              "api": 1,
+              "teste": 2,
+              "normal_ms": 3,
+              "p95_ms": 4,
+              "erros_pct": 5,
+              "aguentou_rps": 6,
+              "memoria_pico_mb": 7,
+              "cpu_pico": 8,
+              "checklist": 9,
+              "run": 10
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "minWidth": 80
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Quando"
+              },
+              {
+                "id": "unit",
+                "value": "dateTimeAsLocalNoDateIfToday"
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Ver esta execução no painel",
+                    "url": "/d/todolist?var-api=${__data.fields.api}&var-execucao=${__data.fields.rotulo:percentencode}&from=${__data.fields.inicio}&to=${__data.fields.fim}&refresh="
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "api"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "API"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "teste"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Teste"
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "dev": {
+                        "text": "rápido",
+                        "index": 0
+                      },
+                      "capacidade": {
+                        "text": "capacidade",
+                        "index": 1
+                      },
+                      "resistencia": {
+                        "text": "resistência",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rotulo"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "normal_ms"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Normal"
+              },
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95_ms"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "95% em até"
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              },
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#0ca30c",
+                      "value": null
+                    },
+                    {
+                      "color": "#fab219",
+                      "value": 100
+                    },
+                    {
+                      "color": "#d03b3b",
+                      "value": 500
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "erros_pct"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Erros"
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#0ca30c",
+                      "value": null
+                    },
+                    {
+                      "color": "#fab219",
+                      "value": 0.001
+                    },
+                    {
+                      "color": "#d03b3b",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "aguentou_rps"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Aguentou até"
+              },
+              {
+                "id": "custom.width",
+                "value": 120
+              },
+              {
+                "id": "unit",
+                "value": "suffix: req/s"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "noValue",
+                "value": "-"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "memoria_pico_mb"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Memória"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "unit",
+                "value": "decmbytes"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "noValue",
+                "value": "-"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cpu_pico"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "CPU"
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              },
+              {
+                "id": "unit",
+                "value": "suffix: núcleos"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "noValue",
+                "value": "-"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "checklist"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Checklist"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "inicio"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "fim"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "id": 14,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    },
+    {
+      "type": "text",
+      "title": "Como ler",
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 50
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "- **Normal**: metade das requisições respondeu mais rápido que isso.\n- **95% em até**: só 1 em cada 20 requisições demorou mais que isso. São os casos ruins. Verde até 100 ms, amarelo até 500 ms, vermelho acima.\n- **Requisições por segundo**: a carga que a API atendeu.\n- **Memória e CPU**: medidas no processo (ou container) da API, só quando ela roda na mesma máquina do teste. 1 núcleo = um núcleo do processador 100% ocupado.\n- **Execução**: cada teste rodado. Escolha uma ou mais lá em cima para comparar (por exemplo, TS x C#), ou clique no horário de uma linha de **Execuções** para ver só ela.\n- Durante um teste, o painel atualiza sozinho a cada 5 segundos."
+      },
+      "id": 15,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "k6influx"
+      }
+    }
+  ]
+}

@@ -1,17 +1,56 @@
-# Roda a suite sem instalar o k6: docker compose run --rm --service-ports k6 <comando>
-# A configuração vem do .env (copie o .env.example). Os comandos estão no README.
+# Containers usados pelo run.sh e pelo run.bat. Os comandos estão no README.
+# A configuração vem do .env (o run.sh e o run.bat criam a partir do .env.example).
+name: k6-desafio-todolist
+
 services:
+  # Painel com os gráficos: http://localhost:3030
+  grafana:
+    image: grafana/grafana:13.3.1
+    depends_on:
+      - influxdb
+    ports:
+      - "127.0.0.1:3030:3000"
+    environment:
+      # Sem login: o painel só abre nesta máquina (porta presa em 127.0.0.1).
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_DEFAULT_LANGUAGE: pt-BR
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/todolist.json
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+
+  # Banco das métricas: o k6 e o medidor de memória/CPU escrevem aqui durante o teste.
+  influxdb:
+    image: influxdb:1.11.8-alpine
+    ports:
+      - "127.0.0.1:8086:8086"
+    environment:
+      INFLUXDB_DB: k6
+      INFLUXDB_REPORTING_DISABLED: "true"
+      INFLUXDB_HTTP_LOG_ENABLED: "false"
+      INFLUXDB_DATA_QUERY_LOG_ENABLED: "false"
+    volumes:
+      - metricas:/var/lib/influxdb
+
   k6:
     image: grafana/k6:2.4.0
-    entrypoint: ["sh", "run.sh"]
-    command: ["smoke"]
+    entrypoint: ["sh", "docker/entrypoint.sh"]
+    command: ["dev"]
     working_dir: /k6
+    depends_on:
+      - influxdb
+      - grafana
     volumes:
       - .:/k6
     # No Linux, faz os arquivos de results/ saírem com o seu usuário, não com o do container.
     user: "${UID:-1000}:${GID:-1000}"
     ports:
-      - "5665:5665" # dashboard do k6
+      - "5665:5665" # painel do próprio k6 (AO_VIVO=1)
     extra_hosts:
       # host.docker.internal aponta para a sua máquina também no Linux.
       - "host.docker.internal:host-gateway"
@@ -20,7 +59,11 @@ services:
       API: ${API:-api}
       RATE: ${RATE:-}
       DURATION: ${DURATION:-}
-      SCENARIOS: ${SCENARIOS:-}
+      ROTAS: ${ROTAS:-}
       USERS: ${USERS:-}
       AUTH_SCHEME: ${AUTH_SCHEME:-}
-      SKIP_CONTRACT: ${SKIP_CONTRACT:-}
+      AO_VIVO: ${AO_VIVO:-}
+
+# Histórico das execuções. Para apagar tudo: docker compose down -v
+volumes:
+  metricas:

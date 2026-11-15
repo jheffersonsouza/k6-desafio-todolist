@@ -1,54 +1,102 @@
 #!/bin/sh
-# Ponto de entrada do compose.yaml: docker compose run --rm --service-ports k6 <comando>
-# Também funciona com o k6 instalado na máquina: BASE_URL=http://localhost:8080 API=java sh run.sh <comando>
+# Comandos do container do k6 (compose.yaml). No dia a dia, use o run.sh ou o run.bat.
 set -eu
 
 usage() {
   cat <<'EOF'
-Uso: docker compose run --rm --service-ports k6 <comando>
-
-  contract                   só o teste de contrato
-  smoke                      contrato + carga mínima (padrão)
-  load | stress | spike |    contrato + teste de carga, com gráficos ao vivo
-  soak | breakpoint          em http://localhost:5665 e relatório HTML em results/
-  compare <a.json> <b.json>  compara dois resultados de results/
+Comandos:
+  dev            checklist da spec e teste rápido (~1 min 30 s). É o padrão.
+  capacidade     sobe a carga em degraus até a API não aguentar (até ~4 min)
+  resistencia    carga constante por 30 min, para ver se a memória ou a velocidade pioram
+  checklist      só o checklist da spec: o que a API já faz e o que falta
+  comparar A B   compara dois resultados de results/
+  painel         abre o painel com os gráficos (http://localhost:3030)
+  parar          para o teste que estiver rodando
+  desligar       desliga o painel (o histórico fica guardado)
 EOF
 }
 
-command="${1:-smoke}"
+# O checklist roda sem os logs do k6: o resumo dele já mostra tudo, inclusive se a API não respondeu.
+checklist() {
+  k6 run --quiet --log-output=none "$@" k6/contract.js
+}
+
+# Roda o checklist antes do teste de carga e guarda o resultado, que aparece no relatório.
+checklist_before() {
+  if checklist -e CHECKLIST_MODO=resumo; then
+    export CHECKLIST=ok
+  else
+    export CHECKLIST=falhou
+  fi
+}
+
+# AO_VIVO=1 liga também o painel do próprio k6 em http://localhost:5665.
+live() {
+  if [ "${AO_VIVO:-}" = "1" ]; then
+    export K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_PERIOD=2s
+    echo "  Painel do k6: http://localhost:5665"
+  fi
+}
+
+# Teste de carga mandando as métricas ao vivo para o painel (InfluxDB). Esconde dois avisos do k6 sobre essa
+# saída: que ela vai sair na versão 3 (a versão do k6 está fixada no compose.yaml) e que o envio atrasou
+# na carga mais alta (os gráficos só chegam alguns segundos depois).
+load_test() {
+  export K6_INFLUXDB_PUSH_INTERVAL=2s K6_INFLUXDB_CONCURRENT_WRITES=8
+  fifo=$(mktemp -u)
+  mkfifo "$fifo"
+  while IFS= read -r line; do
+    case "$line" in
+      *"influxdb output has been deprecated"* | *"flush operation took higher than the expected"*) ;;
+      *) printf '%s\n' "$line" ;;
+    esac
+  done <"$fifo" &
+  reader=$!
+  k6 run --quiet --log-format raw --out influxdb=http://influxdb:8086/k6 "$@" k6/load.js >"$fifo" 2>&1 &
+  pid=$!
+  # Ctrl+C e o comando parar chegam neste script: repassa para o k6 encerrar e ainda salvar o resultado.
+  trap 'kill -TERM "$pid" 2>/dev/null || true' INT TERM
+  status=0
+  wait "$pid" || status=$?
+  while kill -0 "$pid" 2>/dev/null; do
+    status=0
+    wait "$pid" || status=$?
+  done
+  wait "$reader" 2>/dev/null || true
+  rm -f "$fifo"
+  return "$status"
+}
+
+command="${1:-dev}"
 case "$command" in
-  contract)
-    exec k6 run contract.js
+  dev | capacidade | resistencia)
+    checklist_before
+    live
+    echo "  Gráficos ao vivo: http://localhost:3030"
+    load_test -e PROFILE="$command"
     ;;
-  smoke | load | stress | spike | soak | breakpoint)
-    if [ "${SKIP_CONTRACT:-}" != "1" ] && ! k6 run --quiet contract.js; then
-      echo "O contrato falhou: veja os [MUST] acima. Corrija a API ou rode com SKIP_CONTRACT=1." >&2
-      exit 1
-    fi
-    # O smoke é curto demais para o dashboard gerar relatório.
-    if [ "$command" != smoke ]; then
-      export K6_WEB_DASHBOARD=true
-      export K6_WEB_DASHBOARD_PERIOD=2s
-      export K6_WEB_DASHBOARD_EXPORT="results/${API:-api}_${command}_$(date -u +%Y-%m-%d-%H-%M-%S).html"
-      echo "Gráficos ao vivo em http://localhost:5665"
-    fi
-    k6 run -e PROFILE="$command" load.js && status=0 || status=$?
-    if [ -f "${K6_WEB_DASHBOARD_EXPORT:-}" ]; then
-      echo "Relatório com gráficos: ${K6_WEB_DASHBOARD_EXPORT} (abra no navegador)"
-    fi
-    exit "$status"
+  checklist)
+    checklist
     ;;
-  compare)
+  relatorio)
+    if [ $# -ne 2 ]; then
+      usage
+      exit 2
+    fi
+    exec k6 run --quiet --log-output=none -e RUN_NAME="$2" k6/report.js
+    ;;
+  comparar)
     if [ $# -ne 3 ]; then
       usage
       exit 2
     fi
-    exec k6 run --quiet -e A="$2" -e B="$3" compare.js
+    exec k6 run --quiet -e A="$2" -e B="$3" k6/compare.js
     ;;
-  help | -h | --help)
+  ajuda | help | -h | --help)
     usage
     ;;
   *)
+    echo "Comando desconhecido: $command" >&2
     usage
     exit 2
     ;;
