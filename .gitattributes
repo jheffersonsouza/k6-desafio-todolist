@@ -1,2 +1,3 @@
-# O run.sh roda num container Linux: precisa de LF mesmo num clone feito no Windows.
+# Scripts que rodam no Linux precisam de LF mesmo num clone feito no Windows. O .bat precisa de CRLF.
 * text=auto eol=lf
+*.bat text eol=crlf
