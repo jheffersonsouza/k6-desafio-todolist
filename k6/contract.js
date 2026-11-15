@@ -1,14 +1,13 @@
-// Teste de contrato: confere se a API segue a spec do roadmap.sh antes de medir desempenho.
-//   k6 run -e BASE_URL=http://localhost:8080 contract.js
+// Checklist da spec: confere se a API segue o desafio do roadmap.sh. Use pelo comando checklist.
 // [MUST]   exigido pela spec. Uma falha reprova o teste (exit code 99).
-// [SHOULD] boa prática que a spec não define. Aparece no resumo, mas não reprova.
+// [SHOULD] boa prática que a spec não define. Aparece no resumo como recomendado, mas não reprova.
 import http from 'k6/http';
-import { check, fail, group } from 'k6';
+import { check, group } from 'k6';
 import encoding from 'k6/encoding';
-import exec from 'k6/execution';
-import { BASE_URL } from './lib/config.js';
+import { API, BASE_URL } from './lib/config.js';
 import { json, req, send } from './lib/client.js';
 import { newTodo, newUser } from './lib/data.js';
+import { paint } from './lib/render.js';
 
 export const options = {
   vus: 1,
@@ -20,25 +19,35 @@ export const options = {
   },
 };
 
+// Partes da spec, na ordem do checklist.
+const SECTIONS = {
+  register: 'Cadastro (POST /register)',
+  login: 'Login (POST /login)',
+  auth: 'Rotas protegidas (401 sem token)',
+  create: 'Criar tarefa (POST /todos)',
+  update: 'Editar tarefa (PUT /todos/{id})',
+  remove: 'Apagar tarefa (DELETE /todos/{id})',
+  list: 'Listar tarefas (GET /todos)',
+};
+
 // Aqui 4xx faz parte do teste; só 5xx e erro de rede contam como falha.
 http.setResponseCallback(http.expectedStatuses({ min: 200, max: 499 }));
 
 export default function () {
   const probe = send(req.list(null, 1, 10));
-  if (probe.status === 0) exec.test.abort(`A API não respondeu em ${BASE_URL} (${probe.error}). Ela está de pé?`);
+  if (probe.status === 0) return skipRest(`a API não respondeu em ${BASE_URL} (está de pé?)`);
 
-  let alice;
+  const alice = newUser('alice');
   let bob;
   let todo;
 
-  group('POST /register', () => {
-    alice = newUser('alice');
+  group(SECTIONS.register, () => {
     const res = send(req.register(alice));
-    const ok = must(res, {
+    must(res, {
       'cadastro válido → 200/201': status(200, 201),
       'cadastro devolve { token }': hasToken,
     });
-    if (!ok) fail(`cadastro falhou (${res.status} ${res.body}); sem usuário não dá para seguir`);
+    alice.token = json(res, 'token');
 
     const duplicate = send(req.register({ ...alice, name: 'Outro Nome' }));
     must(duplicate, { 'e-mail repetido → 4xx': clientError });
@@ -51,14 +60,13 @@ export default function () {
     should(send(req.register({ name, email: 'nao-e-um-email', password })), { 'cadastro com e-mail inválido → 4xx': clientError });
   });
 
-  group('POST /login', () => {
+  group(SECTIONS.login, () => {
     const res = send(req.login(alice));
-    const ok = must(res, {
+    must(res, {
       'login válido → 200': status(200),
       'login devolve { token }': hasToken,
     });
-    if (!ok) fail(`login falhou (${res.status} ${res.body}); sem token não dá para seguir`);
-    alice.token = json(res, 'token');
+    alice.token = json(res, 'token') || alice.token;
 
     const wrong = send(req.login({ email: alice.email, password: `${alice.password}-errada` }));
     must(wrong, { 'senha errada → 4xx sem token': (r) => clientError(r) && !json(r, 'token') });
@@ -66,7 +74,7 @@ export default function () {
     must(send(req.login(newUser('ninguem'))), { 'e-mail não cadastrado → 4xx': clientError });
   });
 
-  group('Sem token ou token inválido → 401', () => {
+  group(SECTIONS.auth, () => {
     const b64 = (value) => encoding.b64encode(JSON.stringify(value), 'rawurl');
     const claims = { sub: alice.email, email: alice.email, exp: 4102444800 };
     const forged = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64(claims)}.${'A'.repeat(43)}`;
@@ -87,7 +95,10 @@ export default function () {
     for (const [name, request] of Object.entries(cases)) must(send(request), { [name]: status(401) });
   });
 
-  group('POST /todos', () => {
+  // Daqui em diante tudo precisa de token. Com a API pela metade, o contrato vira um checklist do que falta.
+  if (!alice.token) return skipRest('nem o cadastro nem o login devolveram { token }');
+
+  group(SECTIONS.create, () => {
     const body = newTodo();
     const res = send(req.create(alice.token, body));
     const ok = must(res, {
@@ -96,14 +107,16 @@ export default function () {
         json(r, 'id') != null && json(r, 'title') === body.title && json(r, 'description') === body.description,
     });
     should(res, { 'criar → 201 Created': status(201) });
-    if (!ok) fail(`criar todo falhou (${res.status} ${res.body}); o resto depende dele`);
-    todo = { ...body, id: json(res, 'id') };
+    if (ok) todo = { ...body, id: json(res, 'id') };
 
     must(send(req.create(alice.token, { description: 'sem título' })), { 'criar sem title → 4xx': clientError });
   });
 
-  group('PUT /todos/{id}', () => {
-    bob = registered('bob');
+  if (!todo) return skipRest('não deu para criar um todo');
+  bob = registered('bob');
+  if (!bob) return skipRest('não deu para cadastrar um segundo usuário com token');
+
+  group(SECTIONS.update, () => {
     const forbidden = send(req.update(bob.token, todo.id, newTodo()));
     must(forbidden, { 'editar todo de outro usuário → 403': status(403) });
     should(forbidden, { '403 devolve { "message": "Forbidden" }': message('Forbidden') });
@@ -119,7 +132,7 @@ export default function () {
     should(send(req.update(alice.token, missingId(todo.id), newTodo())), { 'editar id inexistente → 404': status(404) });
   });
 
-  group('DELETE /todos/{id}', () => {
+  group(SECTIONS.remove, () => {
     const forbidden = send(req.remove(bob.token, todo.id));
     must(forbidden, { 'apagar todo de outro usuário → 4xx': clientError });
     should(forbidden, { 'apagar todo de outro usuário → 403': status(403) });
@@ -130,10 +143,11 @@ export default function () {
     should(send(req.remove(alice.token, todo.id)), { 'apagar de novo → 404': status(404) });
   });
 
-  group('GET /todos (paginação)', () => {
+  group(SECTIONS.list, () => {
     // Outro usuário com todo, para a lista da carol mostrar se vaza item alheio.
     send(req.create(bob.token, newTodo()));
     const carol = registered('carol');
+    if (!carol) return skipRest('não deu para cadastrar um terceiro usuário com token');
     const ids = [];
     for (let i = 0; i < 3; i++) ids.push(json(send(req.create(carol.token, newTodo())), 'id'));
 
@@ -167,6 +181,61 @@ export default function () {
   });
 }
 
+export function handleSummary(data) {
+  return { stdout: checklist(data, { color: data.state.isStdOutTTY, short: __ENV.CHECKLIST_MODO === 'resumo' }) };
+}
+
+// Lista legível do que passou e do que falta. No modo resumo (antes do teste de carga), só o que falta.
+function checklist(data, { color, short }) {
+  const c = paint(color);
+  const sections = data.root_group.groups.map((g) => ({ name: g.name, items: g.checks.map(item) }));
+  const loose = data.root_group.checks.map(item);
+  const all = sections.flatMap((s) => s.items).concat(loose);
+  const required = all.filter((i) => i.required);
+  const optional = all.filter((i) => !i.required);
+  const passed = (list) => list.filter((i) => i.ok).length;
+  const done = passed(required) === required.length;
+  // Partes que nem rodaram porque faltou algo antes (ex.: token), com o motivo.
+  const ran = new Set(sections.map((s) => s.name));
+  const untested = Object.values(SECTIONS).filter((name) => !ran.has(name)).map((name) => name.replace(/ \(.*\)$/, ''));
+  const why = loose.length ? loose[0].label.replace(/^o resto não deu para testar: /, '') : '';
+  const pending = untested.length ? `  ${c.bad('✗')} Ainda sem teste: ${untested.join(', ')} (${why})` : '';
+  const lines = ['', `  Checklist da spec · ${API} · ${BASE_URL}`];
+  if (!sections.length) return `${lines.concat(`  ${c.bad('✗')} Nada foi testado: ${why}.`, '').join('\n')}\n`;
+  lines.push(
+    `  ${done && !untested.length ? c.good('✓') : c.bad('✗')} ${c.bold(`${passed(required)} de ${required.length} itens obrigatórios ok`)}` +
+      ` · ${passed(optional)} de ${optional.length} recomendados` +
+      (untested.length ? ` · ${untested.length} ${untested.length > 1 ? 'partes' : 'parte'} da spec ainda sem teste` : ''),
+  );
+  if (short) {
+    const missing = required.filter((i) => !i.ok && !loose.includes(i));
+    for (const i of missing.slice(0, 8)) lines.push(`    ${c.bad('✗')} ${i.label}`);
+    if (missing.length > 8) lines.push(c.dim(`    ... e mais ${missing.length - 8}`));
+    if (pending) lines.push(`    ${pending.trim()}`);
+    if (missing.length || pending) lines.push(c.dim('    Lista completa: comando checklist'));
+    return `${lines.join('\n')}\n`;
+  }
+  for (const s of sections) {
+    lines.push('', `  ${c.bold(s.name)}`);
+    for (const i of s.items) {
+      const icon = i.ok ? c.good('✓') : i.required ? c.bad('✗') : c.warn('●');
+      lines.push(`    ${icon} ${i.label}${i.required ? '' : c.dim(' (recomendado)')}`);
+    }
+  }
+  if (pending) lines.push('', pending);
+  lines.push('', c.dim('  ✓ ok   ✗ obrigatório pela spec, falhou   ● recomendado, falhou'), '');
+  return `${lines.join('\n')}\n`;
+}
+
+function item(check) {
+  const match = /^\[(MUST|SHOULD)\] /.exec(check.name);
+  return {
+    label: check.name.replace(/^\[(MUST|SHOULD)\] /, ''),
+    required: !match || match[1] === 'MUST',
+    ok: check.fails === 0 && check.passes > 0,
+  };
+}
+
 function must(value, checks) {
   return check(value, prefixed('MUST', checks), { level: 'must' });
 }
@@ -198,11 +267,16 @@ function message(text) {
   return (r) => json(r, 'message') === text;
 }
 
+// Cadastra um usuário e pega o token do cadastro ou, se não vier, do login. null se nenhum devolver.
 function registered(prefix) {
   const user = newUser(prefix);
-  const res = send(req.register(user));
-  if (!hasToken(res)) fail(`não consegui cadastrar ${user.email}: ${res.status} ${res.body}`);
-  return { ...user, token: json(res, 'token') };
+  const token = json(send(req.register(user)), 'token') || json(send(req.login(user)), 'token');
+  return token ? { ...user, token } : null;
+}
+
+// Registra os testes que não deu para rodar como uma falha [MUST], para o contrato não passar pela metade.
+function skipRest(reason) {
+  check(null, { [`[MUST] o resto não deu para testar: ${reason}`]: () => false }, { level: 'must' });
 }
 
 // Procura o todo na lista do dono. null = não está lá; undefined = a listagem falhou.
